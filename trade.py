@@ -6,31 +6,49 @@ import os
 from dotenv import load_dotenv
 import logging
 
-# Load API keys from .env
+# Load API keys from environment
 load_dotenv()
 API_KEY = os.getenv("MEXC_API_KEY")
 API_SECRET = os.getenv("MEXC_API_SECRET")
 
 # Setup logging
 logger = logging.getLogger("trade")
+logger.setLevel(logging.INFO)
 
 logger.info(f"🔍 API KEY from .env: {API_KEY}")
 logger.info(f"🔍 API SECRET loaded: {'Yes' if API_SECRET else 'No'}")
 
-# MEXC API URL
+# MEXC API base URL
 BASE_URL = "https://contract.mexc.com"
+
+
+# === Utility Functions ===
 
 def get_timestamp():
     return str(int(time.time() * 1000))
+
 
 def sign_request(params: dict, secret: str) -> str:
     query_string = "&".join([f"{key}={params[key]}" for key in sorted(params)])
     return hmac.new(secret.encode(), query_string.encode(), hashlib.sha256).hexdigest()
 
+
+def test_mexc_connectivity():
+    try:
+        response = requests.get("https://contract.mexc.com/api/v1/contract/detail", timeout=10)
+        logger.info(f"🌐 MEXC Connectivity Test Status: {response.status_code}")
+        logger.info(f"🌐 Response: {response.text}")
+    except Exception as e:
+        logger.error(f"❌ MEXC connectivity test failed: {e}")
+
+
+# === Main Trading Function ===
+
 def place_order(action: str, symbol: str, quantity: float, leverage: int):
     try:
         logger.info("🟢 Placing new order...")
 
+        # Basic config
         side = 1 if action.lower() == "buy" else 2
         symbol = symbol.replace("USDT", "_USDT")
 
@@ -48,21 +66,27 @@ def place_order(action: str, symbol: str, quantity: float, leverage: int):
             "type": 1
         }
 
+        # Sign request
         params["sign"] = sign_request(params, API_SECRET)
         logger.info(f"🔐 Order Payload: {params}")
 
+        # Headers
         headers = {
             "Content-Type": "application/json"
         }
 
+        # 🔍 Test if MEXC is reachable (just for debugging)
+        test_mexc_connectivity()
+
+        # Send order
         try:
             response = requests.post(
                 f"{BASE_URL}/api/v1/private/order/submit",
                 json=params,
-                headers=headers
+                headers=headers,
+                timeout=10
             )
 
-            # Console output (Render will show this in logs)
             print(">>> STATUS CODE:", response.status_code)
             print(">>> RESPONSE TEXT:", response.text)
 
@@ -71,7 +95,6 @@ def place_order(action: str, symbol: str, quantity: float, leverage: int):
 
             result = response.json()
             logger.info(f"✅ Parsed Response: {result}")
-
             return result
 
         except Exception as post_error:
