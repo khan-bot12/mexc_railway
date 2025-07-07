@@ -68,18 +68,17 @@ def place_order(action: str, symbol: str, quantity: float, leverage: int):
         return {"error": str(e)}
 
 def test_connection():
-    logger.info("🔍 Testing MEXC API connection with open orders request...")
+    logger.info("🔍 Testing MEXC API connection with account/assets request...")
 
     params = {
         "api_key": API_KEY,
-        "req_time": get_timestamp(),
-        "symbol": "ETH_USDT"
+        "req_time": get_timestamp()
     }
 
     params["sign"] = sign_request(params, API_SECRET)
 
     try:
-        response = requests.get(f"{BASE_URL}/api/v1/private/order/list/open", params=params, timeout=10)
+        response = requests.get(f"{BASE_URL}/api/v1/private/account/assets", params=params, timeout=10)
         logger.info(f"✅ API Connection Response: {response.text}")
         return response.json()
     except Exception as e:
